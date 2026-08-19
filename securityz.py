@@ -3,6 +3,10 @@ import requests
 import ssl
 import socket
 from datetime import datetime, timezone 
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer 
 
 def check_security_headers(url):
     expected_headers = {
@@ -34,7 +38,7 @@ def check_security_headers(url):
             "severity": "High",
             "title": "Connection Failed",
             "detail": f"Failed to connect to URL: {str(e)}",
-            "recommendation": "verify the URL is correct and the site is reachable.",
+            "recommendation": "Verify the URL is correct and the site is reachable.",
         })
 
     return findings    
@@ -103,12 +107,12 @@ def check_information_disclosure(url):
     disclosure_headers = {
         "Server": {
             "severity": "Low",
-            "recommendation": "Configure the server to supress or obscure its version in the Server header (e.g. 'ServerTokens Prod' on Apache).",
+            "recommendation": "Configure the server to suppress or obscure its version in the Server header (e.g. 'ServerTokens Prod' on Apache).",
         },
 
         "X-Powered-By": {
             "severity": "Low", 
-            "recommendation": "remove the X-Powered-By header (e.g.'expose_php = Off' in PHP, or app.disable('x-powered-by') in Express).",
+            "recommendation": "Remove the X-Powered-By header (e.g.'expose_php = Off' in PHP, or app.disable('x-powered-by') in Express).",
         },
     }
 
@@ -129,7 +133,7 @@ def check_information_disclosure(url):
         findings.append({
             "severity": "High",
             "title": "Connection failed",
-            "detail": f"failed to connect to URL: {str(e)}",
+            "detail": f"Failed to connect to URL: {str(e)}",
             "recommendation": "Verify the URL is correct and the site is reachable.",
         })
     return findings
@@ -234,19 +238,70 @@ def format_report(url, findings):
 
 
 
-    return "\n".join(lines)    
+    return "\n".join(lines) 
+
+def generate_pdf_report(url, findings, filename="security_report.pdf"):
+    doc = SimpleDocTemplate(filename, pagesize=letter) 
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "CustomTitle",
+        parent=styles["Title"],
+        textColor=colors.HexColor("#0A1F3D"),
+    )
+    heading_style = ParagraphStyle(
+        "SeverityHeading",
+        parent=styles["Heading2"],
+        textColor=colors.HexColor("#00C8E6"),
+    )
+
+    story = []
+    story.append(Paragraph("Security Scan Report", title_style))
+    story.append(Paragraph(f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}",styles["Normal"]))
+    story.append(Paragraph(f"Target: {url}", styles["Normal"]))
+    story.append(Paragraph(f"Total findings: {len(findings)}", styles["Normal"]))
+    story.append(Spacer(1, 20))
+
+    for severity in ["High", "Medium", "Low"]:
+        matched = [f for f in findings if f["severity"] == severity]
+
+        if matched:
+            story.append(Paragraph(f"{severity.upper()} ({len(matched)})", heading_style))
+            story.append(Spacer(1, 6))
+
+            for item in matched:
+                title = item.get("title", "N/A")
+                detail = item.get("detail", "No details provided.")
+                rec = item.get("recommendation", "No recommendation provided.")
+                
+                story.append(Paragraph(f"<b>Title:</b> {title}", styles["Normal"]))
+                story.append(Paragraph(f"<b>Detail:</b> {detail}", styles["Normal"]))
+                story.append(Paragraph(f"<b>Recommendation:</b> {rec}", styles["Normal"]))
+
+                story.append(Spacer(1, 12))
+                
+
+
+
+    doc.build(story)
+    return filename      
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Scan a website for common security misconfiguartions."
+        description="Scan a website for common security misconfigurations."
         )    
 
     parser.add_argument("url", help="The URL to scan, e.g. https://example.com")
+    parser.add_argument("--pdf", action="store_true", help="Also generate a branded PDF report.",)
 
     args = parser.parse_args()
 
     findings = run_all_checks(args.url)
     print(format_report(args.url, findings))
+
+    if args.pdf:
+        filename = generate_pdf_report(args.url, findings)
+        print(f"\nPDF report saved to: {filename}")
 
 
 
