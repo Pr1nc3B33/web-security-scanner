@@ -1,4 +1,5 @@
-from securityz import format_report, check_security_headers
+from securityz import format_report, check_security_headers, check_directory_listing
+import securityz
 
 
 def test_format_report_groups_by_severity():
@@ -23,8 +24,10 @@ def test_format_reports_with_empty_lists():
     assert "HIGH (0)" not in report   
 
 class FakeResponse:
-    def __init__(self, headers):
-        self.headers = headers
+    def __init__(self, headers=None, status_code=200, text=""):
+        self.headers = headers if headers is not None else {}
+        self.status_code = status_code
+        self.text = text
 
 def test_security_headers_flags_missing(monkeypatch):
     def fake_get(url, timeout=5):
@@ -53,6 +56,21 @@ def test_security_headers_passes_when_present(monkeypatch):
         
     findings = check_security_headers("https://anything.com")
     assert len(findings) == 0     
+
+def test_directory_listing_detected(monkeypatch):
+    def fake_get(url, timeout=5):
+         return FakeResponse(status_code=200, text="<title>Directory listing for /uploads/</title>")
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_directory_listing("https://anything.com")
+    assert len(findings) >= 1
+
+def test_directory_no_listing(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(status_code=200, text="<html>normal page</html>")
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_directory_listing("https://anything.com")
+    assert len(findings) == 0
+
 
         
 

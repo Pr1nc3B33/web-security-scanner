@@ -215,6 +215,7 @@ def run_all_checks(url):
     findings.extend(check_information_disclosure(url))
     findings.extend(check_exposed_paths(url))
     findings.extend(check_cookie_flags(url))
+    findings.extend(check_directory_listing(url))
     return findings
 
 def format_report(url, findings):
@@ -284,7 +285,38 @@ def generate_pdf_report(url, findings, filename="security_report.pdf"):
 
 
     doc.build(story)
-    return filename      
+    return filename 
+
+def check_directory_listing(url):
+    findings = []
+    directories = [
+        "/images/",
+        "/uploads/",
+        "/files/",
+        "/backup/",
+        "/admin/",
+    ]  
+
+    base = url.rstrip("/")       
+
+    for directory in directories:
+        try:
+            resp = requests.get(base + directory, timeout=5)
+            body = resp.text
+
+            if resp.status_code == 200 and ("Index of /" in body or "Directory listing for" in body):
+                findings.append({
+                    "severity": "Medium",
+                    "title": f"Directory listing enabled: {directory}",
+                    "detail": f"The directory {directory} returns a browsable file index, exposing its contents.",
+                    "recommendation": "Disable directory listing (e.g. 'Options -Indexes' on Apache, or 'autoindex off' on nginx).",
+
+                })
+
+        except requests.RequestException:
+            continue
+
+    return findings         
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
