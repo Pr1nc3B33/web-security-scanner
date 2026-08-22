@@ -41,7 +41,14 @@ def check_security_headers(url):
             "recommendation": "Verify the URL is correct and the site is reachable.",
         })
 
-    return findings    
+    return findings 
+
+    
+# NOTE: This check uses raw ssl/socket rather than requests, so it is verified
+# via integration testing against known endpoints (e.g. expired.badssl.com)
+# rather than unit-mocked. Mocking a full TLS handshake adds complexity out of
+# proportion to the value at this stage.
+
 
 def check_tls_certificate(url):
     findings = []
