@@ -1,4 +1,4 @@
-from securityz import format_report, check_security_headers, check_directory_listing, check_mixed_content
+from securityz import format_report, check_security_headers, check_directory_listing, check_mixed_content, check_information_disclosure, check_exposed_paths
 import securityz
 
 
@@ -90,7 +90,35 @@ def test_mixed_content_skips_http_site(monkeypatch):
         return FakeResponse(test='<img src="http://insecure.com/x.png">')
     monkeypatch.setattr("securityz.requests.get", fake_get)
     findings = check_mixed_content("http://anything.com")
+    assert len(findings) == 0 
+
+def test_information_disclosure_detected(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(headers={"Server": "Apache/2.4.29"})
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_information_disclosure("https://anything.com") 
+    assert len(findings) >= 1
+
+def test_information_dislosure_clean(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(headers={"Server": "cloudfare"})
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_information_disclosure("https://anything.com")
     assert len(findings) == 0    
+
+def test_exposed_paths_detected(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(status_code=200)
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_exposed_paths("https://anything.com")
+    assert len(findings) >= 1
+
+def  test_exposed_paths_clean(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(status_code=404)
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_exposed_paths("https://anything.com")
+    assert len(findings) == 0                             
 
 
 
