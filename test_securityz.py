@@ -1,4 +1,4 @@
-from securityz import format_report, check_security_headers, check_directory_listing
+from securityz import format_report, check_security_headers, check_directory_listing, check_mixed_content
 import securityz
 
 
@@ -70,6 +70,29 @@ def test_directory_no_listing(monkeypatch):
     monkeypatch.setattr("securityz.requests.get", fake_get)
     findings = check_directory_listing("https://anything.com")
     assert len(findings) == 0
+
+def test_mixed_content_detected(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(text='<img src="http://example.com/logo.png">')
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_mixed_content("https://anything.com")
+    assert len(findings) >= 1
+
+def test_mixed_content_clean(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(text='<img src="https://example.com/logo.png">')
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_mixed_content("https://anything.com")
+    assert len(findings) == 0
+
+def test_mixed_content_skips_http_site(monkeypatch):
+    def fake_get(url, timeout=5):
+        return FakeResponse(test='<img src="http://insecure.com/x.png">')
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_mixed_content("http://anything.com")
+    assert len(findings) == 0    
+
+
 
 
         

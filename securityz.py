@@ -316,7 +316,35 @@ def check_directory_listing(url):
         except requests.RequestException:
             continue
 
-    return findings         
+    return findings
+
+def check_mixed_content(url):
+     findings = [] 
+
+     if not url.startswith("https://"):
+         return findings
+
+     try:
+         resp = requests.get(url, timeout=5)
+         body = resp.text
+
+         if 'src="http://' in body or 'href="http://' in body:
+            findings.append({
+                "severity": "Medium",
+                "title": "Mixed content detected",
+                "detail": f"Https loading insecure resources",
+                "recommendation": "Update those references to https or protocol-relative URLs",
+            })
+
+     except requests.RequestException as e:
+         findings.append({
+             "severity": "High",
+             "title": "Connection Failed",
+             "detail": f"Failed to connect to URL: {str(e)}",
+             "recommendation": "Verify the URL is correct and the site is reachable"
+         })
+     return findings    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
