@@ -1,4 +1,4 @@
-from securityz import format_report, check_security_headers, check_directory_listing, check_mixed_content, check_information_disclosure, check_exposed_paths
+from securityz import format_report, check_security_headers, check_directory_listing, check_mixed_content, check_information_disclosure, check_exposed_paths, check_cookie_flags
 import securityz
 
 
@@ -118,7 +118,41 @@ def  test_exposed_paths_clean(monkeypatch):
         return FakeResponse(status_code=404)
     monkeypatch.setattr("securityz.requests.get", fake_get)
     findings = check_exposed_paths("https://anything.com")
-    assert len(findings) == 0                             
+    assert len(findings) == 0   
+
+class FakeCookie:
+    def __init__(self, name, secure=False, http_only=False, samesite=False):
+        self.name = name
+        self.secure = secure
+        self._http_only = http_only
+        self._rest = {"SameSite": "Lax"} if samesite else {}
+
+    def has_nonstandard_attr(self, attr):
+        return attr == "HttpOnly" and self._http_only 
+
+class FakeResponse:
+    def __init__(self, headers=None, status_code=200, text="", cookies=None):
+        self.headers = headers if headers is not None else {}
+        self.status_code = status_code
+        self.text = text
+        self.cookies = cookies if cookies is not None else {}
+
+def test_cookie_flags_all_missing(monkeypatch):
+    insecure_cookie = FakeCookie(name="Session")
+    def fake_get(url, timeout=5):
+        return FakeResponse(cookies=[insecure_cookie])
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_cookie_flags("https://anything.com")
+    assert len(findings) == 3
+
+def test_cookie_flags_all_present(monkeypatch):
+    secure_cookie = FakeCookie(name="session", secure=True, http_only=True, samesite=True)
+    def fake_get(url, timeout=5):
+        return FakeResponse(cookies=[secure_cookie])
+    monkeypatch.setattr("securityz.requests.get", fake_get)
+    findings = check_cookie_flags("https://anything.com")
+    assert len(findings) == 0            
+
 
 
 
