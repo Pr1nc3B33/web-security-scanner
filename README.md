@@ -1,51 +1,61 @@
 
-# WEB SECURITY SCANNER 
+# WEB SECURITY SCANNER
 
-A command-line tool that scans a website for common security misconfiguartions and produces a clear severity-ranked report. Written in Python.
+A command-line tool that scans a website for common security misconfigurations and produces a clear, severity-ranked report — in the terminal or as a branded PDF. Written in Python.
 
 ## WHAT IT CHECKS
 
-- **Security Headers** - flags missing HTTP security headers (HSTS, Content-Security-Policy, X-Frame_Options, and others), 
-                         that protect agaisnt common web attacks.
+- **Security headers** — flags missing HTTP security headers (HSTS, Content-Security-Policy, X-Frame-Options, and others).
+- **TLS / certificate** — checks whether the site's certificate is valid, expired, or expiring soon.
+- **Information disclosure** — detects when the server leaks software versions via `Server` or `X-Powered-By` headers.
+- **Exposed sensitive paths** — probes for accidentally public files such as `.env`, `.git/config`, and config backups.
+- **Cookie flags** — checks cookies for the `Secure`, `HttpOnly`, and `SameSite` security flags.
+- **Directory listing** — detects browsable directories that expose their file contents.
+- **Mixed content** — flags HTTPS pages that load resources over insecure HTTP.
 
-- **TLS / Certificate** - checks whether the site's certificate is valid, expired or expiring soon. 
+## PROJECT STRUCTURE
 
-- **Information Disclosure** - detects when the server leaks its software versions via `Server` or `X-Powered-By` headers. 
-
-- **Exposed Sensitive Paths** - probes for accidently public files such as `.env`, `.git/config`, and config backups.
-
-- **Cookie Flags** - checks cookies for the `Secure`, `HttpOnly`, and `SameSite` security flags. 
+cybertruckz/
+checks.py # the seven security checks
+scanner.py # orchestration — runs all checks
+report.py # text and PDF report generation
+securityz.py # command-line entry point
+test_securityz.py # test suite
 
 ## INSTALLATION 
+
 
 ```bash
 git clone https://github.com/Pr1nc3B33/web-security-scanner.git
 cd web-security-scanner
-pip install requests
+pip install requests reportlab
 ```
 
+## Usage
 
-## USAGE
+Scan a site and print the report to the terminal:
 
 ```bash
 python3 securityz.py https://example.com
 ```
 
-Example output:
+Also generate a branded PDF report:
 
+```bash
+python3 securityz.py https://example.com --pdf
+```
 
-Security scan report for: https://example.com
-Total findings: 2
-MEDIUM (1)
+See `sample_report.pdf` in this repo for an example of the PDF output.
 
-Title: HttpOnly missing on cookie session_id
-Detail: The cookie 'session_id' is not marked HttpOnly.
-Recommendation: Set the HttpOnly flag so the cookie cannot be accessed by client-side JavaScript.
+## Testing
 
-LOW (1)
+Run the test suite with:
 
-Title: Missing Permissions-Policy header
-...
+```bash
+pytest test_securityz.py -v
+```
+
+The suite uses mocking to test the network-facing checks without making live requests.
 
 ## Responsible use
 
@@ -53,7 +63,7 @@ This tool performs active checks against the target site, including requesting s
 
 ## Built with
 
-Python · requests · standard library (ssl, socket, argparse)
+Python · requests · reportlab · pytest
 
 
 
